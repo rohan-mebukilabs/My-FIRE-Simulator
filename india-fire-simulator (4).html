@@ -1,0 +1,1077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My FIRE Simulator — Mebuki Labs</title>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  /* Light professional palette */
+  --bg:       #f7f8fa;
+  --bg2:      #ffffff;
+  --bg3:      #f1f3f6;
+  --bg4:      #e4e7ed;
+  --bg5:      #d0d4dc;
+  --border:   rgba(15,23,42,0.08);
+  --border2:  rgba(15,23,42,0.14);
+  --border3:  rgba(15,23,42,0.22);
+  --text:     #0f172a;
+  --text2:    #475569;
+  --text3:    #94a3b8;
+  /* Accent palette — navy + emerald + amber */
+  --gold:     #2563eb;   /* primary blue — CTAs, highlights      */
+  --gold2:    #3b82f6;   /* lighter blue                          */
+  --saffron:  #0ea5e9;   /* sky blue                              */
+  --green:    #059669;   /* emerald — positive / growth           */
+  --teal:     #0d9488;   /* teal — secondary positive             */
+  --rose:     #dc2626;   /* red — warnings / depletion            */
+  --lavender: #7c3aed;   /* violet — income increase              */
+  --amber:    #d97706;   /* amber — caution                       */
+  --font-h:   'Geist', sans-serif;
+  --font-m:   'Geist Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Geist', sans-serif;
+  font-size: 13px;
+  line-height: 1.65;
+  min-height: 100vh;
+}
+
+/* Dot-grid background — crisp professional paper feel */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image: radial-gradient(circle, #c8d0dd 1px, transparent 1px);
+  background-size: 24px 24px;
+  opacity: 0.55;
+  pointer-events: none; z-index: 0;
+}
+
+.wrap { position: relative; z-index: 1; max-width: 1360px; margin: 0 auto; padding: 2.5rem 1.5rem 5rem; }
+
+/* ── HEADER ── */
+.header { margin-bottom: 2.5rem; }
+.header-top { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-icon {
+  width: 44px; height: 44px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.brand h1 {
+  font-family: var(--font-h); font-size: clamp(20px, 3vw, 30px);
+  font-weight: 700; letter-spacing: -0.3px; line-height: 1.1;
+}
+.brand h1 em { font-style: normal; color: var(--gold); }
+.brand p { font-size: 11px; color: var(--text3); margin-top: 3px; letter-spacing: 0.5px; }
+.header-badges { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--bg3); border: 0.5px solid var(--border2);
+  border-radius: 20px; padding: 5px 12px; font-size: 11px; color: var(--text2);
+}
+.pulse { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── FIRE VERDICT ── */
+.verdict {
+  margin-top: 1.5rem;
+  background: var(--bg2); border: 0.5px solid var(--border2);
+  border-radius: 14px; padding: 1.4rem 1.6rem;
+  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+}
+.verdict-left { display: flex; align-items: center; gap: 14px; }
+.verdict-icon { font-size: 32px; }
+.verdict-title { font-family: var(--font-h); font-size: 18px; font-weight: 600; }
+.verdict-sub { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.verdict-right { display: flex; gap: 2rem; flex-wrap: wrap; }
+.verdict-stat { text-align: right; }
+.verdict-stat-val { font-family: var(--font-h); font-size: 22px; font-weight: 700; color: var(--gold); }
+.verdict-stat-lbl { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; }
+
+/* Progress bar */
+.progress-row { margin-top: 1rem; }
+.progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-bottom: 6px; }
+.progress-track { height: 5px; background: var(--bg4); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width 0.5s ease; }
+
+/* ── LAYOUT ── */
+/* inputs top panel */
+.inputs-top { margin-bottom: 1.5rem; }
+.inputs-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 1100px) { .inputs-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 680px)  { .inputs-grid { grid-template-columns: repeat(2, 1fr); } }
+.inputs-col { display: flex; flex-direction: column; gap: 0; }
+
+/* ── PANEL ── */
+.panel {
+  background: var(--bg2); border: 0.5px solid var(--border); border-radius: 14px; overflow: hidden;
+}
+.panel-hd {
+  padding: 12px 16px; border-bottom: 0.5px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.panel-hd-dot { width: 5px; height: 5px; border-radius: 50%; }
+.panel-hd-title {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
+  color: var(--text3); font-weight: 400;
+}
+.panel-body { padding: 16px; }
+
+/* ── INPUTS ── */
+.sec-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
+  color: var(--text3); padding-bottom: 8px; margin-bottom: 12px; margin-top: 18px;
+  border-bottom: 0.5px solid var(--border);
+}
+.sec-label:first-child { margin-top: 0; }
+
+.input-row { margin-bottom: 13px; }
+.input-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+.input-name { font-size: 12px; color: var(--text2); }
+.input-val { font-size: 13px; color: var(--text); font-weight: 500; }
+
+input[type="number"] {
+  width: 100%; background: var(--bg3); border: 0.5px solid var(--border2);
+  border-radius: 7px; padding: 8px 11px; color: var(--text);
+  font-family: 'Geist', sans-serif; font-size: 13px; outline: none; transition: border-color 0.15s;
+}
+input[type="number"]:focus { border-color: var(--gold); }
+input[type="number"]::placeholder { color: var(--text3); }
+
+input[type="range"] {
+  width: 100%; height: 3px; appearance: none;
+  background: var(--bg5); border-radius: 2px; outline: none; cursor: pointer; margin-top: 2px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none; width: 15px; height: 15px; border-radius: 50%;
+  background: var(--gold); border: 2px solid #ffffff; box-shadow: 0 1px 3px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.15s;
+}
+input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.25); }
+input[type="range"].green-thumb::-webkit-slider-thumb { background: var(--green); }
+input[type="range"].rose-thumb::-webkit-slider-thumb { background: var(--rose); }
+input[type="range"].teal-thumb::-webkit-slider-thumb { background: var(--teal); }
+input[type="range"].lav-thumb::-webkit-slider-thumb { background: var(--lavender); }
+
+/* ── METRICS ── */
+.metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1.25rem; }
+@media (max-width: 760px) { .metrics-row { grid-template-columns: repeat(2,1fr); } }
+
+.mcard {
+  background: var(--bg2); border: 0.5px solid var(--border); border-radius: 11px;
+  padding: 13px 15px; position: relative; overflow: hidden; transition: border-color 0.2s;
+}
+.mcard:hover { border-color: var(--border2); }
+.mcard-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; border-radius: 11px 11px 0 0; }
+.mcard-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text3); margin-bottom: 6px; }
+.mcard-val { font-family: var(--font-h); font-size: clamp(15px, 2vw, 20px); font-weight: 700; color: var(--text); }
+.mcard-sub { font-size: 10px; color: var(--text3); margin-top: 3px; }
+.mcard-delta { font-size: 10px; color: var(--green); margin-top: 3px; }
+
+/* ── CHART AREAS ── */
+.chart-box {
+  background: var(--bg2); border: 0.5px solid var(--border);
+  border-radius: 14px; padding: 18px; margin-bottom: 1.25rem;
+}
+.chart-box-hd { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.chart-box-title { font-family: var(--font-h); font-size: 14px; font-weight: 600; }
+.chart-box-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+.chart-h { position: relative; }
+.chart-h-280 { height: 280px; }
+.chart-h-240 { height: 240px; }
+.chart-h-220 { height: 220px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 12px; }
+.leg { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--text2); }
+.leg-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+
+/* ── TWO-COL ── */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; margin-bottom: 1.25rem; }
+@media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+/* ── DONUT ── */
+.donut-wrap { position: relative; height: 220px; }
+.donut-center {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  text-align: center; pointer-events: none;
+}
+.donut-center-val { font-family: var(--font-h); font-size: 17px; font-weight: 700; line-height: 1.2; }
+.donut-center-lbl { font-size: 10px; color: var(--text3); }
+
+/* ── TABLE ── */
+.table-box { background: var(--bg2); border: 0.5px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 1.25rem; }
+.table-hd { padding: 13px 16px; border-bottom: 0.5px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.table-hd-title { font-family: var(--font-h); font-size: 14px; font-weight: 600; }
+.tscroll { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  padding: 9px 13px; text-align: left; font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--text3); border-bottom: 0.5px solid var(--border); font-weight: 400;
+}
+tbody td { padding: 8px 13px; font-size: 12px; color: var(--text2); border-bottom: 0.5px solid var(--border); white-space: nowrap; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--bg3); }
+tbody tr.fire-row td { background: rgba(37,99,235,0.07); color: var(--text); }
+tbody tr.fire-row td:first-child { color: var(--gold); font-weight: 600; }
+tbody tr.danger-row td { background: rgba(220,38,38,0.06); color: var(--text2); }
+tbody tr.today-row td { color: var(--text3); font-style: italic; }
+tbody tr.retirement-row td { background: rgba(5,150,105,0.06); }
+tbody tr.retirement-row td:last-child { color: var(--green); }
+
+/* ── DEPLETION ALERT ── */
+.depletion-box {
+  border-radius: 12px; padding: 1.2rem 1.4rem; margin-bottom: 1.25rem;
+  border: 0.5px solid; display: flex; gap: 12px; align-items: flex-start;
+}
+.depletion-box.safe { background: rgba(5,150,105,0.05); border-color: rgba(5,150,105,0.25); }
+.depletion-box.warn { background: rgba(217,119,6,0.05); border-color: rgba(217,119,6,0.25); }
+.depletion-box.danger { background: rgba(220,38,38,0.05); border-color: rgba(220,38,38,0.25); }
+.depletion-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+.depletion-title { font-family: var(--font-h); font-size: 15px; font-weight: 600; margin-bottom: 3px; }
+.depletion-desc { font-size: 12px; color: var(--text2); line-height: 1.6; }
+
+/* ── EXECUTIVE SUMMARY ── */
+.exec-summary {
+  background: var(--bg2); border: 0.5px solid var(--border2);
+  border-left: 3px solid var(--gold);
+  border-radius: 0 12px 12px 0;
+  padding: 1.1rem 1.4rem; margin-bottom: 1.5rem;
+  display: flex; gap: 14px; align-items: flex-start;
+}
+.exec-icon { flex-shrink: 0; margin-top: 3px; }
+.exec-title {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 2px;
+  color: var(--gold); margin-bottom: 6px; font-weight: 400;
+}
+.exec-text { font-size: 12.5px; color: var(--text2); line-height: 1.8; }
+.exec-text strong { color: var(--text); font-weight: 500; }
+.exec-text .hi  { color: var(--gold); }
+.exec-text .pos { color: var(--green); }
+.exec-text .neg { color: var(--rose); }
+
+/* ── FOOTER ── */
+.footer { text-align: center; font-size: 11px; color: var(--text3); padding-top: 1rem; line-height: 1.8; }
+
+/* scrollbar */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--bg3); }
+::-webkit-scrollbar-thumb { background: var(--bg5); border-radius: 3px; }
+</style>
+</head>
+<body>
+<nav style="background:#fff;border-bottom:1px solid var(--border2);padding:10px 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;backdrop-filter:blur(8px);">
+  <span style="font-family:'Geist',sans-serif;font-weight:600;font-size:14px;color:var(--text);letter-spacing:-0.3px">Mebuki Labs</span>
+  <span style="font-size:11px;color:var(--text3);font-family:'Geist',sans-serif">My FIRE Simulator</span>
+</nav>
+<div class="wrap">
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div class="brand">
+      <div class="brand-icon">
+        <svg width="44" height="44" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="0.5" y="0.5" width="43" height="43" rx="9.5" stroke="rgba(37,99,235,0.25)" fill="rgba(37,99,235,0.04)"/>
+          <rect x="8" y="28" width="5" height="8" rx="1" fill="rgba(37,99,235,0.3)"/>
+          <rect x="15" y="22" width="5" height="14" rx="1" fill="rgba(37,99,235,0.5)"/>
+          <rect x="22" y="16" width="5" height="20" rx="1" fill="rgba(37,99,235,0.7)"/>
+          <rect x="29" y="10" width="5" height="26" rx="1" fill="#2563eb"/>
+          <polyline points="8,27 15,21 22,15 34,9" stroke="#2563eb" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.4"/>
+        </svg>
+      </div>
+      <div>
+        <h1>My <em>FIRE</em> Simulator</h1>
+        <p>Financial Independence · Retire Early · India Edition</p>
+      </div>
+    </div>
+    <div class="header-badges">
+      <div class="badge"><span class="pulse"></span>Live model</div>
+      <div class="badge" id="date-badge">—</div>
+    </div>
+  </div>
+
+  <!-- Verdict -->
+  <div class="verdict" id="verdict-box">
+    <div class="verdict-left">
+      <div class="verdict-icon" id="verdict-icon">🌅</div>
+      <div>
+        <div class="verdict-title" id="verdict-title">Calculating…</div>
+        <div class="verdict-sub" id="verdict-sub"></div>
+      </div>
+    </div>
+    <div class="verdict-right">
+      <div class="verdict-stat">
+        <div class="verdict-stat-val" id="v-corpus-60">—</div>
+        <div class="verdict-stat-lbl">Corpus at retirement</div>
+      </div>
+      <div class="verdict-stat">
+        <div class="verdict-stat-val" id="v-safe-rate">—</div>
+        <div class="verdict-stat-lbl">Safe withdrawal</div>
+      </div>
+      <div class="verdict-stat">
+        <div class="verdict-stat-val" id="v-depletes">—</div>
+        <div class="verdict-stat-lbl">Money lasts until</div>
+      </div>
+    </div>
+  </div>
+  <div class="progress-row" style="margin-top:1rem">
+    <div class="progress-label">
+      <span>FIRE readiness: <span id="fire-pct-lbl">—%</span></span>
+      <span id="fire-corpus-needed">Needed at 60: —</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="fire-bar" style="width:0%"></div></div>
+  </div>
+</div>
+
+
+<!-- EXECUTIVE SUMMARY -->
+<div class="exec-summary">
+  <div class="exec-icon">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="9" cy="9" r="8.5" stroke="rgba(232,160,48,0.4)"/>
+      <line x1="9" y1="4" x2="9" y2="10" stroke="#e8a030" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="9" cy="13" r="1" fill="#e8a030"/>
+    </svg>
+  </div>
+  <div style="flex:1">
+    <div class="exec-title">Executive Summary</div>
+    <div class="exec-text" id="exec-text">Calculating your personalised financial summary…</div>
+  </div>
+</div>
+
+<!-- METRICS -->
+<div class="metrics-row">
+  <div class="mcard"><div class="mcard-accent" style="background:var(--gold)"></div>
+    <div class="mcard-lbl">Net worth today</div>
+    <div class="mcard-val" id="m-today">—</div>
+    <div class="mcard-sub" id="m-today-sub">—</div>
+  </div>
+  <div class="mcard"><div class="mcard-accent" style="background:var(--green)"></div>
+    <div class="mcard-lbl">MF corpus at retirement</div>
+    <div class="mcard-val" id="m-mfret">—</div>
+    <div class="mcard-delta" id="m-mfret-x">—</div>
+  </div>
+  <div class="mcard"><div class="mcard-accent" style="background:var(--teal)"></div>
+    <div class="mcard-lbl">Total corpus at retirement</div>
+    <div class="mcard-val" id="m-totalret">—</div>
+    <div class="mcard-sub" id="m-totalret-sub">—</div>
+  </div>
+  <div class="mcard"><div class="mcard-accent" style="background:var(--rose)"></div>
+    <div class="mcard-lbl">Annual spend at retirement</div>
+    <div class="mcard-val" id="m-spendret">—</div>
+    <div class="mcard-sub">Inflation-adjusted</div>
+  </div>
+</div>
+
+<!-- INPUTS TOP PANEL -->
+<div class="inputs-top panel">
+  <div class="panel-hd">
+    <div class="panel-hd-dot" style="background:var(--gold)"></div>
+    <div class="panel-hd-title">Your Inputs</div>
+  </div>
+  <div class="panel-body">
+    <div class="inputs-grid">
+
+      <!-- Col 1: Personal -->
+      <div class="inputs-col">
+        <div class="sec-label">Personal</div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Current age</span></div>
+          <input type="number" id="i-age" value="32" min="18" max="59">
+        </div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Target retirement age</span></div>
+          <input type="number" id="i-ret-age" value="60" min="40" max="80">
+        </div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Annual expenses in retirement (₹ today)</span></div>
+          <input type="number" id="i-ret-exp" value="1200000" step="100000" placeholder="₹ 12,00,000">
+        </div>
+      </div>
+
+      <!-- Col 2: Current Portfolio -->
+      <div class="inputs-col">
+        <div class="sec-label">Current Portfolio</div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Cash savings (₹)</span></div>
+          <input type="number" id="i-cash" value="2000000" step="100000" placeholder="₹ 20,00,000">
+        </div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Mutual fund investments (₹)</span></div>
+          <input type="number" id="i-mf" value="5000000" step="100000" placeholder="₹ 50,00,000">
+        </div>
+      </div>
+
+      <!-- Col 3: Annual Flows -->
+      <div class="inputs-col">
+        <div class="sec-label">Annual Flows</div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Annual saved income (₹)</span></div>
+          <input type="number" id="i-save" value="1200000" step="100000" placeholder="₹ 12,00,000">
+        </div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Annual MF investment (₹)</span></div>
+          <input type="number" id="i-sip" value="600000" step="50000" placeholder="₹ 6,00,000">
+        </div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Additional annual income (₹)</span></div>
+          <input type="number" id="i-extra" value="0" step="50000" placeholder="₹ 0">
+        </div>
+      </div>
+
+      <!-- Col 4: Return Assumptions -->
+      <div class="inputs-col">
+        <div class="sec-label">Return Assumptions</div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">MF expected CAGR</span><span class="input-val" id="v-mf">12%</span></div>
+          <input type="range" class="green-thumb" id="r-mf" min="6" max="20" step="0.5" value="12">
+        </div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Cash / FD return</span><span class="input-val" id="v-cash-ret">6%</span></div>
+          <input type="range" class="teal-thumb" id="r-cash-ret" min="3" max="10" step="0.5" value="6">
+        </div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Post-retirement corpus return</span><span class="input-val" id="v-post">8%</span></div>
+          <input type="range" id="r-post" min="3" max="12" step="0.5" value="8">
+        </div>
+      </div>
+
+      <!-- Col 5: Growth & Inflation -->
+      <div class="inputs-col">
+        <div class="sec-label">Growth &amp; Inflation</div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Expected annual inflation</span><span class="input-val" id="v-inf">6%</span></div>
+          <input type="range" class="rose-thumb" id="r-inf" min="3" max="12" step="0.5" value="6">
+        </div>
+        <div class="input-row">
+          <div class="input-top"><span class="input-name">Annual income increase</span><span class="input-val" id="v-inc">8%</span></div>
+          <input type="range" class="lav-thumb" id="r-inc" min="0" max="20" step="1" value="8">
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- DASHBOARDS -->
+
+  <!-- Depletion alert -->
+  <div class="depletion-box" id="depletion-box">
+    <div class="depletion-icon" id="dep-icon">📊</div>
+    <div>
+      <div class="depletion-title" id="dep-title">Analysing…</div>
+      <div class="depletion-desc" id="dep-desc"></div>
+    </div>
+  </div>
+
+  <!-- Accumulation chart -->
+  <div class="chart-box">
+    <div class="chart-box-hd">
+      <div>
+        <div class="chart-box-title">Portfolio accumulation to retirement</div>
+        <div class="chart-box-sub">MF corpus + cash savings growing year by year</div>
+      </div>
+      <div class="legend">
+        <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>Mutual Funds</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--teal)"></div>Cash / FD</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--gold)"></div>Total</div>
+      </div>
+    </div>
+    <div class="chart-h chart-h-280"><canvas id="chart-accum" role="img" aria-label="Portfolio accumulation chart to retirement"></canvas></div>
+  </div>
+
+  <!-- Donut + burn-down -->
+  <div class="two-col">
+    <div class="chart-box" style="margin-bottom:0">
+      <div class="chart-box-hd">
+        <div>
+          <div class="chart-box-title">Asset allocation at retirement</div>
+          <div class="chart-box-sub">Portfolio breakdown</div>
+        </div>
+      </div>
+      <div class="donut-wrap">
+        <canvas id="chart-donut" role="img" aria-label="Asset allocation donut at retirement"></canvas>
+        <div class="donut-center">
+          <div class="donut-center-val" id="donut-val">—</div>
+          <div class="donut-center-lbl">total corpus</div>
+        </div>
+      </div>
+      <div class="legend" style="margin-top:10px;justify-content:center">
+        <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>MF corpus</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--teal)"></div>Cash / FD</div>
+      </div>
+    </div>
+    <div class="chart-box" style="margin-bottom:0">
+      <div class="chart-box-hd">
+        <div>
+          <div class="chart-box-title">Corpus burn-down</div>
+          <div class="chart-box-sub">MF and Cash remaining after retirement, year by year</div>
+        </div>
+        <div class="legend">
+          <div class="leg"><div class="leg-dot" style="background:var(--green)"></div>MF corpus</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--teal)"></div>Cash / FD</div>
+          <div class="leg"><div class="leg-dot" style="background:var(--rose)"></div>Annual expense</div>
+        </div>
+      </div>
+      <div class="chart-h chart-h-240"><canvas id="chart-burn" role="img" aria-label="Corpus burn-down chart after retirement"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Annual cashflow chart -->
+  <div class="chart-box">
+    <div class="chart-box-hd">
+      <div>
+        <div class="chart-box-title">Post-retirement annual cash outflow</div>
+        <div class="chart-box-sub">Inflation-adjusted expenses vs returns earned on corpus each year</div>
+      </div>
+      <div class="legend">
+        <div class="leg"><div class="leg-dot" style="background:var(--rose)"></div>Annual expense</div>
+        <div class="leg"><div class="leg-dot" style="background:var(--gold)"></div>Returns earned</div>
+      </div>
+    </div>
+    <div class="chart-h chart-h-220"><canvas id="chart-cashflow" role="img" aria-label="Post-retirement annual cashflow chart"></canvas></div>
+  </div>
+
+  <!-- Year-by-year table -->
+  <div class="table-box">
+    <div class="table-hd">
+      <div class="table-hd-title">Year-by-year projection</div>
+      <div style="font-size:10px;color:var(--text3)">All values in INR &nbsp;·&nbsp; <span style="color:var(--gold)">★ Retirement year</span> &nbsp;·&nbsp; <span style="color:var(--green)">■ Post-retirement (every 5 yrs)</span></div>
+    </div>
+    <div class="tscroll">
+      <table>
+        <thead>
+          <tr>
+            <th>Age</th>
+            <th>Phase</th>
+            <th>MF Corpus</th>
+            <th>Cash / FD</th>
+            <th>Total</th>
+            <th>Annual Income</th>
+            <th>Annual Expense</th>
+            <th>Net Cashflow</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+<div class="footer">
+  <p>My FIRE Simulator · For illustrative purposes only · Not financial advice</p>
+  <p>Mutual fund projections based on historical Nifty 50 long-run CAGR of ~11–12%. Past performance does not guarantee future results.</p>
+  <p style="margin-top:6px;font-size:11px;color:var(--text3)">© 2025 Mebuki Labs. All rights reserved.</p>
+</div>
+
+</div><!-- /wrap -->
+
+<script>
+document.getElementById('date-badge').textContent = new Date().toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+
+const crFmt = n => {
+  const a = Math.abs(n);
+  if (a >= 1e7) return '₹' + (n/1e7).toFixed(2) + ' Cr';
+  if (a >= 1e5) return '₹' + (n/1e5).toFixed(1) + ' L';
+  return '₹' + Math.round(n).toLocaleString('en-IN');
+};
+const crFmtShort = n => {
+  const a = Math.abs(n);
+  if (a >= 1e7) return (n/1e7).toFixed(2) + 'Cr';
+  if (a >= 1e5) return (n/1e5).toFixed(1) + 'L';
+  return Math.round(n).toLocaleString('en-IN');
+};
+const pct = (a,b) => b===0 ? '—' : (a/b-1>=0?'+':'')+Math.round((a/b-1)*100)+'%';
+
+function getP() {
+  const g = id => parseFloat(document.getElementById(id).value)||0;
+  return {
+    age:     g('i-age'),
+    cash:    g('i-cash'),
+    mf:      g('i-mf'),
+    save:    g('i-save'),
+    sip:     g('i-sip'),
+    extra:   g('i-extra'),
+    mfR:     g('r-mf')/100,
+    cashR:   g('r-cash-ret')/100,
+    inf:     g('r-inf')/100,
+    incR:    g('r-inc')/100,
+    retExp:  g('i-ret-exp'),
+    postR:   g('r-post')/100,
+    retAge:  Math.max(g('i-age') + 1, g('i-ret-age') || 60),
+  };
+}
+
+let charts = {};
+
+function calc(p) {
+  const rows = [];
+  const yearsToRet = Math.max(1, p.retAge - p.age);
+
+  // --- ACCUMULATION PHASE ---
+  // Model:
+  //   totalAnnualSavings = p.save (net income saved) + p.extra (bonus/other income)
+  //   annualSIP          = p.sip  (portion of savings going into MF — must be <= totalAnnualSavings)
+  //   annualCashSaved    = totalAnnualSavings - annualSIP (remainder stays as cash/FD)
+  //   Each year, income (and therefore savings) grows by incR
+  //   MF: grows at mfR, topped up by annualSIP
+  //   Cash: grows at cashR, topped up by annualCashSaved
+
+  let mf           = p.mf;
+  let cash         = p.cash;
+  let totalSavings = p.save + p.extra;          // total annual surplus this year
+  let annualSIP    = Math.min(p.sip, totalSavings); // SIP can't exceed total savings
+  let annualCash   = totalSavings - annualSIP;   // rest goes to cash/FD
+
+  for (let y = 0; y <= yearsToRet; y++) {
+    const age = p.age + y;
+    rows.push({
+      age, phase: 'accum',
+      mf, cash,
+      total: mf + cash,
+      expense: 0, netflow: 0,
+      annualIncome: totalSavings,
+      sipThisYear: annualSIP,
+      cashSavedThisYear: annualCash,
+      gainsFromInterest: 0, principalDrawn: 0
+    });
+
+    if (y < yearsToRet) {
+      // Grow the portfolios
+      mf   = mf   * (1 + p.mfR)   + annualSIP;
+      cash = cash * (1 + p.cashR) + annualCash;
+      // Income grows by incR → savings and SIP scale proportionally
+      totalSavings *= (1 + p.incR);
+      annualSIP    *= (1 + p.incR);
+      annualCash   *= (1 + p.incR);
+    }
+  }
+
+  const corpusAtRet  = rows[rows.length - 1].total;
+  const mfAtRet      = rows[rows.length - 1].mf;
+  const cashAtRet    = rows[rows.length - 1].cash;
+  const safeWith     = corpusAtRet * 0.04;
+  // Expenses at retirement: today's expenses inflated forward to retirement age
+  const retExpAtRetire = p.retExp * Math.pow(1 + p.inf, yearsToRet);
+
+  // --- POST-RETIREMENT PHASE ---
+  // Strategy: spend Cash/FD first, let MF keep compounding.
+  // Only liquidate MF principal once Cash is fully exhausted.
+  //
+  // Each year:
+  //   Step 1 — Both buckets earn their respective returns
+  //             cashInterest = cash * cashR
+  //             mfGrowth     = mf   * mfR
+  //   Step 2 — Fund expenses from Cash:
+  //             a) Use cashInterest first (no principal touch)
+  //             b) If cashInterest < expense, draw from cash principal
+  //             c) If cash principal also exhausted, draw from MF
+  //   Step 3 — Add returns to buckets (net of withdrawals)
+  //   Track principalDrawnCash, principalDrawnMF separately
+
+  let retMF      = mfAtRet;
+  let retCash    = cashAtRet;
+  let retExpNow  = retExpAtRetire;
+  let depleteAge = null;
+
+  for (let y = 1; y <= 60; y++) {
+    const age = p.retAge + y;
+
+    // If already fully depleted, push zero rows for chart continuity
+    if (retMF <= 0 && retCash <= 0) {
+      if (age <= 100) {
+        rows.push({ age, phase:'retire', mf:0, cash:0, total:0,
+          expense: retExpNow, netflow: -retExpNow,
+          cashInterest:0, mfGrowth:0, principalDrawnCash:0, principalDrawnMF:0,
+          sipThisYear:0, cashSavedThisYear:0 });
+      }
+      retExpNow *= (1 + p.inf);
+      continue;
+    }
+
+    // Step 1: grow both buckets
+    const cashInterest = retCash * p.cashR;
+    const mfGrowth     = retMF   * p.mfR;
+    let expense        = retExpNow;
+
+    // Step 2a: use cash interest to pay expenses
+    const paidFromCashInterest = Math.min(cashInterest, expense);
+    expense -= paidFromCashInterest;
+
+    // Step 2b: draw from cash principal if needed
+    let principalDrawnCash = 0;
+    if (expense > 0 && retCash > 0) {
+      principalDrawnCash = Math.min(expense, retCash);
+      expense -= principalDrawnCash;
+    }
+
+    // Step 2c: draw from MF if cash exhausted
+    let principalDrawnMF = 0;
+    if (expense > 0 && retMF > 0) {
+      principalDrawnMF = Math.min(expense, retMF);
+      expense -= principalDrawnMF;
+    }
+
+    // Step 3: compute new balances BEFORE clamping to detect depletion
+    const newCash    = retCash + cashInterest - principalDrawnCash;
+    const newMF      = retMF   + mfGrowth     - principalDrawnMF;
+    const totalNow   = Math.max(0, newCash) + Math.max(0, newMF);
+    const netflow    = (cashInterest + mfGrowth) - (principalDrawnCash + principalDrawnMF);
+    const thisExpense = retExpNow; // expense paid this year (before inflating for next)
+
+    // Depletion: either corpus hits zero, or expense couldn't be fully covered
+    if (!depleteAge && (totalNow <= 0 || expense > 0)) {
+      depleteAge = age;
+    }
+
+    retCash   = Math.max(0, newCash);
+    retMF     = Math.max(0, newMF);
+    retExpNow = retExpNow * (1 + p.inf);
+
+    if (age <= 100) {
+      rows.push({
+        age, phase: 'retire',
+        mf: retMF, cash: retCash,
+        total: totalNow,
+        expense: thisExpense,
+        netflow,
+        cashInterest, mfGrowth,
+        principalDrawnCash, principalDrawnMF,
+        sipThisYear: 0, cashSavedThisYear: 0
+      });
+    }
+  }
+
+  return { rows, corpusAtRet, mfAtRet, cashAtRet, safeWith, depleteAge, retExpAtRetire };
+}
+
+function update() {
+  const p = getP();
+
+  // slider labels
+  document.getElementById('v-mf').textContent    = (+document.getElementById('r-mf').value).toFixed(1)+'%';
+  document.getElementById('v-cash-ret').textContent = (+document.getElementById('r-cash-ret').value).toFixed(1)+'%';
+  document.getElementById('v-inf').textContent   = (+document.getElementById('r-inf').value).toFixed(1)+'%';
+  document.getElementById('v-inc').textContent   = (+document.getElementById('r-inc').value).toFixed(0)+'%';
+  document.getElementById('v-post').textContent  = (+document.getElementById('r-post').value).toFixed(1)+'%';
+
+  const r = calc(p);
+  const accumRows = r.rows.filter(x=>x.phase==='accum');
+  const retRows   = r.rows.filter(x=>x.phase==='retire');
+  const today     = accumRows[0];
+
+  // Metrics
+  document.getElementById('m-today').textContent    = crFmt(today.total);
+  document.getElementById('m-today-sub').textContent = 'MF: '+crFmt(today.mf)+' · Cash: '+crFmt(today.cash);
+  document.getElementById('m-mfret').textContent     = crFmt(r.mfAtRet);
+  document.getElementById('m-mfret-x').textContent   = pct(r.mfAtRet, p.mf) + ' growth';
+  document.getElementById('m-totalret').textContent  = crFmt(r.corpusAtRet);
+  document.getElementById('m-totalret-sub').textContent = pct(r.corpusAtRet, today.total)+' from today';
+  document.getElementById('m-spendret').textContent  = crFmt(r.retExpAtRetire);
+
+  // Verdict — derive everything from the actual simulation result (r.depleteAge)
+  // rather than a theoretical blended-rate formula which diverges from the 2-bucket model.
+  const yearsCorpusLasts = r.depleteAge ? (r.depleteAge - p.retAge) : 99;
+  const lifeExpectancy   = 90; // benchmark: corpus should last to 90
+  const yearsNeeded      = lifeExpectancy - p.retAge;
+  // firePct = how close are we to lasting until life expectancy
+  const firePct = Math.min(100, Math.round((yearsCorpusLasts / yearsNeeded) * 100));
+  const fireReady = !r.depleteAge || r.depleteAge >= lifeExpectancy;
+
+  document.getElementById('v-corpus-60').textContent = crFmtShort(r.corpusAtRet);
+  document.getElementById('v-safe-rate').textContent = crFmtShort(r.safeWith)+'/yr';
+  document.getElementById('v-depletes').textContent = r.depleteAge ? 'Age '+r.depleteAge : 'Never ✓';
+
+  document.getElementById('verdict-icon').textContent = fireReady ? '🔥' : firePct >= 70 ? '🌅' : '📈';
+  document.getElementById('verdict-title').textContent = fireReady
+    ? (r.depleteAge ? `Corpus lasts to age ${r.depleteAge} — on track for a secure retirement.` : 'FIRE achieved! Corpus sustains your lifestyle indefinitely.')
+    : firePct >= 70 ? 'On track — a few more years of growth needed.'
+    : 'Gap remains — adjust savings or return assumptions.';
+  document.getElementById('verdict-sub').textContent = r.depleteAge
+    ? `Corpus runs out at age ${r.depleteAge} (${yearsCorpusLasts} years of retirement). Your inflation-adjusted expenses at retirement will be ${crFmt(r.retExpAtRetire)}/yr.`
+    : `Corpus never depletes. Annual retirement expenses of ${crFmt(r.retExpAtRetire)} are covered by investment returns indefinitely.`;
+
+  document.getElementById('fire-pct-lbl').textContent = firePct + '%';
+  document.getElementById('fire-corpus-needed').textContent = r.depleteAge
+    ? `Corpus lasts ${yearsCorpusLasts} of ${yearsNeeded} years needed (to age ${lifeExpectancy})`
+    : `Corpus lasts indefinitely — genuine financial independence`;
+  const bar = document.getElementById('fire-bar');
+  bar.style.width = firePct+'%';
+  bar.style.background = fireReady ? 'linear-gradient(90deg,var(--green),var(--teal))' : firePct>=70 ? 'linear-gradient(90deg,var(--gold),var(--green))' : 'linear-gradient(90deg,var(--rose),var(--gold))';
+
+  // Depletion box
+  const db = document.getElementById('depletion-box');
+  db.className = 'depletion-box';
+  if (!r.depleteAge) {
+    db.classList.add('safe');
+    document.getElementById('dep-icon').textContent = '✅';
+    document.getElementById('dep-title').textContent = 'Your corpus never depletes';
+    document.getElementById('dep-desc').textContent = `At ₹${crFmtShort(r.corpusAtRet)} corpus and a ${(p.postR*100).toFixed(1)}% post-retirement return, your annual interest income (${crFmt(r.corpusAtRet*p.postR)}) exceeds inflation-adjusted expenses (${crFmt(r.retExpAtRetire)}). You have genuine financial independence.`;
+  } else if (r.depleteAge >= 85) {
+    db.classList.add('warn');
+    document.getElementById('dep-icon').textContent = '⚠️';
+    document.getElementById('dep-title').textContent = `Corpus lasts until age ${r.depleteAge} — plan for longevity`;
+    document.getElementById('dep-desc').textContent = `Your funds are expected to run out around age ${r.depleteAge}. Consider increasing savings, targeting a higher corpus, or reducing post-retirement expenses to ensure lifelong security.`;
+  } else {
+    db.classList.add('danger');
+    document.getElementById('dep-icon').textContent = '🚨';
+    document.getElementById('dep-title').textContent = `Corpus depletes by age ${r.depleteAge} — action needed`;
+    document.getElementById('dep-desc').textContent = `At current assumptions, your retirement corpus runs out by age ${r.depleteAge}. Increase annual investments, extend the accumulation period, or reduce planned retirement spending to close the gap.`;
+  }
+
+  // Donut
+  document.getElementById('donut-val').textContent = crFmtShort(r.corpusAtRet);
+  const donutData = [Math.round(r.mfAtRet), Math.round(r.cashAtRet)];
+  if (charts.donut) {
+    charts.donut.data.datasets[0].data = donutData;
+    charts.donut.update('none');
+  } else {
+    charts.donut = new Chart(document.getElementById('chart-donut'), {
+      type: 'doughnut',
+      data: { labels:['Mutual Funds','Cash / FD'], datasets:[{ data:donutData, backgroundColor:['#3dba7a','#2ab8a0'], borderWidth:0, hoverOffset:5 }] },
+      options: {
+        responsive:true, maintainAspectRatio:false, cutout:'65%',
+        plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#1e293b', borderColor:'rgba(15,23,42,0.12)', borderWidth:1, callbacks:{ label: c=>' '+c.label+': '+crFmt(c.raw) } } }
+      }
+    });
+  }
+
+  const gridC = 'rgba(15,23,42,0.06)';
+  const tickC = '#94a3b8';
+  const monoFont = 'IBM Plex Mono';
+
+  // Accumulation chart
+  const aLabels = accumRows.map(r=>r.age);
+  const aMF     = accumRows.map(r=>Math.round(r.mf));
+  const aCash   = accumRows.map(r=>Math.round(r.cash));
+  const aTotal  = accumRows.map(r=>Math.round(r.total));
+
+  if (charts.accum) {
+    charts.accum.data.labels = aLabels;
+    charts.accum.data.datasets[0].data = aMF;
+    charts.accum.data.datasets[1].data = aCash;
+    charts.accum.data.datasets[2].data = aTotal;
+    charts.accum.update('none');
+  } else {
+    charts.accum = new Chart(document.getElementById('chart-accum'), {
+      type:'bar',
+      data:{
+        labels:aLabels,
+        datasets:[
+          { label:'Mutual Funds', data:aMF, backgroundColor:'rgba(61,186,122,0.75)', stack:'a' },
+          { label:'Cash / FD',   data:aCash, backgroundColor:'rgba(42,184,160,0.65)', stack:'a' },
+          { type:'line', label:'Total', data:aTotal, borderColor:'#e8a030', backgroundColor:'transparent', borderWidth:2, pointRadius:0, tension:0.35, yAxisID:'y' }
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#1e293b', borderColor:'rgba(15,23,42,0.12)', borderWidth:1,
+          callbacks:{ label:c=>' '+c.dataset.label+': '+crFmt(c.raw) }
+        }},
+        scales:{
+          x:{ stacked:true, grid:{color:gridC}, ticks:{color:tickC, font:{family:monoFont, size:11}} },
+          y:{ stacked:true, grid:{color:gridC}, ticks:{color:tickC, font:{family:monoFont, size:11}, callback:v=>'₹'+crFmtShort(v)} }
+        }
+      }
+    });
+  }
+
+  // Burn-down chart (post-retirement corpus)
+  const bLabels = retRows.map(r=>r.age);
+  const bMF     = retRows.map(r=>Math.max(0,Math.round(r.mf)));
+  const bCash   = retRows.map(r=>Math.max(0,Math.round(r.cash)));
+  const bCorpus = retRows.map(r=>Math.max(0,Math.round(r.total)));
+  const bExp    = retRows.map(r=>Math.round(r.expense));
+
+  if (charts.burn) {
+    charts.burn.data.labels = bLabels;
+    charts.burn.data.datasets[0].data = bMF;
+    charts.burn.data.datasets[1].data = bCash;
+    charts.burn.data.datasets[2].data = bExp;
+    charts.burn.update('none');
+  } else {
+    charts.burn = new Chart(document.getElementById('chart-burn'), {
+      type:'line',
+      data:{
+        labels:bLabels,
+        datasets:[
+          { label:'MF corpus', data:bMF, borderColor:'#3dba7a', backgroundColor:'rgba(61,186,122,0.15)', borderWidth:1.5, fill:true, tension:0.35, pointRadius:0 },
+          { label:'Cash / FD', data:bCash, borderColor:'#2ab8a0', backgroundColor:'rgba(42,184,160,0.12)', borderWidth:1.5, fill:true, tension:0.35, pointRadius:0 },
+          { label:'Annual expense', data:bExp, borderColor:'#d44060', backgroundColor:'transparent', borderWidth:1.5, borderDash:[4,3], tension:0.35, pointRadius:0, yAxisID:'y2' }
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#1e293b', borderColor:'rgba(15,23,42,0.12)', borderWidth:1,
+          callbacks:{ label:c=>' '+c.dataset.label+': '+crFmt(c.raw) }
+        }},
+        scales:{
+          x:{ grid:{color:gridC}, ticks:{color:tickC, font:{family:monoFont,size:11}} },
+          y:{ grid:{color:gridC}, ticks:{color:tickC, font:{family:monoFont,size:11}, callback:v=>'₹'+crFmtShort(v)}, title:{display:false} },
+          y2:{ position:'right', grid:{display:false}, ticks:{color:tickC, font:{family:monoFont,size:11}, callback:v=>'₹'+crFmtShort(v)} }
+        }
+      }
+    });
+  }
+
+  // Cashflow chart
+  const cfLabels  = retRows.map(r=>r.age);
+  const cfExp     = retRows.map(r=>Math.round(r.expense));
+  const cfInterest= retRows.map(row=>Math.max(0,Math.round((row.cashInterest||0)+(row.mfGrowth||0))));
+
+  if (charts.cashflow) {
+    charts.cashflow.data.labels = cfLabels;
+    charts.cashflow.data.datasets[0].data = cfExp;
+    charts.cashflow.data.datasets[1].data = cfInterest;
+    charts.cashflow.update('none');
+  } else {
+    charts.cashflow = new Chart(document.getElementById('chart-cashflow'), {
+      type:'bar',
+      data:{
+        labels:cfLabels,
+        datasets:[
+          { label:'Annual expense', data:cfExp, backgroundColor:'rgba(212,64,96,0.65)' },
+          { label:'Corpus interest', data:cfInterest, backgroundColor:'rgba(232,160,48,0.55)' }
+        ]
+      },
+      options:{
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#1e293b', borderColor:'rgba(15,23,42,0.12)', borderWidth:1,
+          callbacks:{ label:c=>' '+c.dataset.label+': '+crFmt(c.raw) }
+        }},
+        scales:{
+          x:{ grid:{color:gridC}, ticks:{color:tickC, font:{family:monoFont,size:11}, maxTicksLimit:10} },
+          y:{ grid:{color:gridC}, ticks:{color:tickC, font:{family:monoFont,size:11}, callback:v=>'₹'+crFmtShort(v)} }
+        }
+      }
+    });
+  }
+
+  // Table — accumulation: every year; retirement: every 5 years; cap at age 100
+  const tbody = document.getElementById('table-body');
+  const tableRows = r.rows.filter(row => {
+    if (row.age > 100) return false;
+    if (row.phase === 'accum') return true;
+    if (row.age === p.retAge) return true;
+    return (row.age - p.retAge) % 5 === 0;
+  });
+  tbody.innerHTML = tableRows.map((row, i) => {
+    const origIdx = r.rows.indexOf(row);
+    const prev    = r.rows[origIdx - 1];
+
+    // Phase label
+    const cls = row.age === p.retAge ? 'fire-row'
+              : row.phase === 'retire' && row.total <= 0 ? 'danger-row'
+              : row.phase === 'retire' ? 'retirement-row'
+              : i === 0 ? 'today-row' : '';
+    const phaseTag = row.age === p.retAge ? '★ Retirement'
+                   : row.phase === 'retire' ? 'Post-ret +' + (row.age - p.retAge) + 'yr'
+                   : i === 0 ? 'Today' : 'Accumulation';
+
+    // Annual Income: earned income during accumulation; interest/returns during retirement
+    let annualIncomeVal, annualIncomeStr;
+    if (row.phase === 'accum') {
+      annualIncomeVal = row.annualIncome || 0;
+      annualIncomeStr = crFmt(annualIncomeVal);
+    } else {
+      // In retirement, "income" = investment returns earned on corpus
+      annualIncomeVal = (row.cashInterest || 0) + (row.mfGrowth || 0);
+      annualIncomeStr = annualIncomeVal > 0
+        ? '<span style="color:var(--teal)">' + crFmt(annualIncomeVal) + '</span>'
+        : '—';
+    }
+
+    // Annual Expense
+    const expenseStr = row.phase === 'retire'
+      ? '<span style="color:var(--rose)">' + crFmt(row.expense) + '</span>'
+      : '—';
+
+    // Net Cashflow
+    let netflow;
+    if (row.phase === 'accum') {
+      netflow = prev ? row.total - prev.total : 0;
+    } else {
+      netflow = row.netflow || 0;
+    }
+    const netStr = '<span style="color:' + (netflow >= 0 ? 'var(--green)' : 'var(--rose)') + '">'
+      + (netflow >= 0 ? '+' : '') + crFmt(netflow) + '</span>';
+
+    // Total corpus cell
+    const totalCell = row.total > 0
+      ? crFmt(row.total)
+      : '<span style="color:var(--rose)">Depleted</span>';
+
+    return '<tr class="' + cls + '">'
+      + '<td>' + row.age + '</td>'
+      + '<td>' + phaseTag + '</td>'
+      + '<td>' + crFmt(row.mf) + '</td>'
+      + '<td>' + crFmt(row.cash) + '</td>'
+      + '<td>' + totalCell + '</td>'
+      + '<td>' + annualIncomeStr + '</td>'
+      + '<td>' + expenseStr + '</td>'
+      + '<td>' + netStr + '</td>'
+      + '</tr>';
+  }).join('');
+
+  // ── Executive Summary — bullet format, driven by actual simulation ──
+  // Safety fallback: if any retirement row has total=0, find the earliest such age
+  const firstZeroRow = retRows.find(row => row.total <= 0);
+  const effectiveDepleteAge = r.depleteAge || (firstZeroRow ? firstZeroRow.age : null);
+  const cashIdlePct    = p.cash / Math.max(1, p.cash + p.mf) * 100;
+  const yearsToRetire  = Math.max(1, p.retAge - p.age);
+  const realReturn     = ((1 + p.mfR) / (1 + p.inf) - 1) * 100;
+  const undeployedAnnual = Math.max(0, p.save - p.sip);
+  const corpusLasts    = effectiveDepleteAge ? (effectiveDepleteAge - p.retAge) : 99;
+  const bullets = [];
+
+  // Bullet 1 — retirement outcome (truth from simulation)
+  if (!effectiveDepleteAge) {
+    bullets.push(`<span class="pos">✓ Your money will never run out.</span> Your ${crFmt(r.corpusAtRet)} corpus at age ${p.retAge} generates enough returns to cover your inflation-adjusted expenses every year indefinitely.`);
+  } else if (effectiveDepleteAge >= 85) {
+    bullets.push(`<span style="color:var(--gold)">⚠ Your money lasts until age ${effectiveDepleteAge}</span> — that's ${corpusLasts} years of retirement, which is solid but may fall short if you live longer. Your corpus at retirement will be ${crFmt(r.corpusAtRet)}, covering expenses that will reach ${crFmt(r.retExpAtRetire)}/yr by then.`);
+  } else {
+    bullets.push(`<span class="neg">✗ Your money runs out at age ${effectiveDepleteAge}</span> — only ${corpusLasts} years into retirement. At retirement your annual expenses will be ${crFmt(r.retExpAtRetire)}, but your ${crFmt(r.corpusAtRet)} corpus won't keep pace. You need to save more, invest more, or plan to spend less in retirement.`);
+  }
+
+  // Bullet 2 — savings deployment gap
+  if (undeployedAnnual > 0) {
+    const extraCorpus = undeployedAnnual * ((Math.pow(1+p.mfR, yearsToRetire)-1)/p.mfR);
+    bullets.push(`<span class="neg">↑ You are under-investing ₹${crFmtShort(undeployedAnnual)}/yr.</span> You save ₹${crFmtShort(p.save)}/yr but only invest ₹${crFmtShort(p.sip)}/yr in mutual funds. The gap sits in low-return cash. Routing it into your SIP could add ${crFmt(extraCorpus)} to your retirement corpus.`);
+  } else {
+    bullets.push(`<span class="pos">✓ You are fully deploying your savings into mutual funds.</span> As your income grows at ${(p.incR*100).toFixed(0)}%/yr, try to increase your SIP by the same percentage each year to maintain the same investment rate.`);
+  }
+
+  // Bullet 3 — cash allocation
+  if (cashIdlePct > 35) {
+    const mfUpside = p.cash * 0.5 * Math.pow(1+p.mfR, yearsToRetire) - p.cash * 0.5 * Math.pow(1+p.cashR, yearsToRetire);
+    bullets.push(`<span style="color:var(--gold)">↑ ${Math.round(cashIdlePct)}% of your portfolio is sitting in cash or FDs.</span> After inflation at ${(p.inf*100).toFixed(0)}%, your cash earns only ${((p.cashR-p.inf)*100).toFixed(1)}% real return. Moving half into mutual funds could grow your corpus by an extra ${crFmt(mfUpside)} by retirement.`);
+  } else {
+    bullets.push(`<span class="pos">✓ Your cash vs MF split looks reasonable</span> at ${Math.round(cashIdlePct)}% in cash. Keep 6–12 months of expenses liquid and invest the rest for long-term growth.`);
+  }
+
+  // Bullet 4 — real return vs inflation
+  if (realReturn < 5) {
+    bullets.push(`<span class="neg">↑ Your real return after inflation is only ${realReturn.toFixed(1)}%/yr.</span> With ${(p.mfR*100).toFixed(1)}% MF returns and ${(p.inf*100).toFixed(1)}% inflation, your money is barely growing in real terms. Consider equity-heavy index funds targeting 12–14% to widen this gap.`);
+  } else {
+    bullets.push(`<span class="pos">✓ Strong real return of ${realReturn.toFixed(1)}%/yr above inflation.</span> Stay consistent with your SIP — don't pause during market downturns, as those years often produce the best long-term gains.`);
+  }
+
+  document.getElementById('exec-text').innerHTML =
+    '<ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:10px">' +
+    bullets.map(b => `<li style="padding-left:0;line-height:1.7">${b}</li>`).join('') +
+    '</ul>';
+}
+
+  document.querySelectorAll('input').forEach(el => el.addEventListener('input', update));
+update();
+</script>
+</body>
+</html>
